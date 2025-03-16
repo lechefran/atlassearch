@@ -79,7 +79,7 @@ func (u *MongoDBUtil) Query(d bson.D) []byte {
 	return res
 }
 
-func (u *MongoDBUtil) QueryMultiple(d bson.D) [][]byte {
+func (u *MongoDBUtil) QueryMany(d bson.D) [][]byte {
 	var res [][]byte
 	cur, err := u.client.Database(u.db).Collection(u.collection).Find(context.TODO(), d, options.Find())
 	if errors.Is(err, mongo.ErrNoDocuments) {
@@ -110,4 +110,42 @@ func (u *MongoDBUtil) Insert(r model.Restaurant) bool {
 		return true
 	}
 	return true
+}
+
+func (u *MongoDBUtil) InsertMany(d []model.Restaurant) bool {
+	if _, err := u.client.Database(u.db).Collection(u.collection).InsertMany(context.TODO(), d); err != nil {
+		log.Println(err)
+		return false
+	}
+	return true
+}
+
+func (u *MongoDBUtil) Clear() bool {
+	if res, err := u.client.Database(u.db).Collection(u.collection).DeleteMany(context.TODO(), bson.D{{}}); err != nil {
+		log.Println(err)
+		return false
+	} else if res.DeletedCount == 0 {
+		return true
+	}
+	return true
+}
+
+func (u *MongoDBUtil) ClearIndices() bool {
+	if err := u.client.Database(u.db).Collection(u.collection).Indexes().DropAll(context.TODO()); err != nil {
+		log.Println(err)
+		return false
+	}
+	return true
+}
+
+func (u *MongoDBUtil) CreateIndex(m mongo.IndexModel) bool {
+	if _, err := u.client.Database(u.db).Collection(u.collection).Indexes().CreateOne(context.TODO(), m); err != nil {
+		log.Println(err)
+		return false
+	}
+	return true
+}
+
+func (u *MongoDBUtil) CreateSession() (*mongo.Session, error) {
+	return u.client.StartSession(nil)
 }

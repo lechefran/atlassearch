@@ -5,7 +5,7 @@ type Restaurant struct {
 	RestaurantId   string     `json:"restaurantId" bson:"restaurantId"`
 	MetaData       Metadata   `json:"metaData" bson:"metaData"`
 	Address        Address    `json:"address" bson:"address"`
-	Owners         []Owner    `json:"owners" bson:"owners"`
+	Owner          Owner      `json:"owner" bson:"owner"`
 	Chefs          []Chef     `json:"chefs" bson:"chefs"`
 	Menu           []MenuItem `json:"menu" bson:"menu"`
 }

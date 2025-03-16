@@ -2,41 +2,82 @@ package load
 
 import (
 	"atlassearch/model"
-	dbutil "atlassearch/util"
+	util2 "atlassearch/util"
+	"context"
 	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/mongo/writeconcern"
+	"log"
 	"math/rand"
 )
 
-var creationStatsMap map[string]int
+func prepareCollection() {
+	util := util2.NewMongoDbUtil("")
 
-func loadDocuments() {
-	// TODO: implement
-	// steps
-	// check number of documents in collection
-	// if 1M then do not continue
-	// else if less than 1M then clear collection
-	// else
-	// load creationStatsMap with document breakdown
-	// each document should have its own id (UUID)
-	// every 10 documents, change name of head chef
-	// every 100 documents, change city
-	// every 1000 documents, change state
-	// every 10000 documents, change country
-	// just use placeholder names
-	// create documents and add to interface slice
-	// insert all documents using a transaction
-	util := dbutil.NewMongoDbUtil("")
+	docCount := util.QueryMany(bson.D{})
+	if len(docCount) == 1000000 {
+		log.Println("Documents are already loaded in collection. Skipping document load step...")
+	} else {
+		log.Println("Loading documents to collection...")
+		wc := writeconcern.Majority()
+		txnOpts := options.Transaction().SetWriteConcern(wc)
+		session, err := util.CreateSession()
+		if err != nil {
+			panic(err)
+		}
 
+		defer session.EndSession(context.Background())
+		res, err := session.WithTransaction(context.TODO(), func(ctx context.Context) (interface{}, error) {
+			docs := createDocuments()
+			resInsert := util.InsertMany(docs)
+
+			idIdx := mongo.IndexModel{ // restaurantId_1
+				Keys: bson.D{{"restaurantId", 1}},
+			}
+			ownerIdx := mongo.IndexModel{ // firstName_text_lastName_text
+				Keys: bson.D{{"owner.firstName", "text"},
+					{"owner.lastName", "text"}},
+			}
+			cityIdx := mongo.IndexModel{ // city_text
+				Keys: bson.D{{"address.city", "text"}},
+			}
+			stateIdx := mongo.IndexModel{ // state_text
+				Keys: bson.D{{"address.state", "text"}},
+			}
+			countryIdx := mongo.IndexModel{ // country_text
+				Keys: bson.D{{"address.country", "text"}},
+			}
+
+			resIdx := util.CreateIndex(idIdx) &&
+				util.CreateIndex(ownerIdx) &&
+				util.CreateIndex(cityIdx) &&
+				util.CreateIndex(stateIdx) &&
+				util.CreateIndex(countryIdx)
+			return resInsert && resIdx, nil
+		}, txnOpts)
+		if res.(bool) {
+			log.Println("All preparation steps have been executed successfully")
+		} else {
+			log.Println("Something went wrong in the preparation steps")
+		}
+	}
+	util.Close()
+}
+
+func createDocuments() []model.Restaurant {
 	var docs []model.Restaurant
+	for i := 0; i < 1000000; i++ {
+		docs = append(docs, restaurantSkeleton())
+	}
 
 	// create 10k document batches with the same country
 	idx := 65
 	country := "COUNTRY " + string(byte(idx))
 	for i := 0; i < 1000000; i += 10000 {
 		for j := 0; j < 10000; j++ {
-			doc := restaurantSkeleton()
-			doc.Address.Country = country
-			docs = append(docs, doc)
+			docs[i].Address.Country = country
 		}
 		idx++
 	}
@@ -46,9 +87,7 @@ func loadDocuments() {
 	state := "STATE " + string(byte(idx))
 	for i := 0; i < 1000000; i += 1000 {
 		for j := 0; j < 1000; j++ {
-			doc := restaurantSkeleton()
-			doc.Address.State = state
-			docs = append(docs, doc)
+			docs[i].Address.State = state
 		}
 		idx++
 	}
@@ -58,48 +97,51 @@ func loadDocuments() {
 	city := "CITY " + string(byte(idx))
 	for i := 0; i < 1000000; i += 100 {
 		for j := 0; j < 100; j++ {
-			doc := restaurantSkeleton()
-			doc.Address.City = city
-			docs = append(docs, doc)
+			docs[i].Address.City = city
 		}
 		idx++
 	}
 
-	// create 10 document batches with the same chef name
+	// create 10 document batches with the same owner
 	for i := 0; i < 1000000; i += 10 {
-		headChef := &model.Chef{
-			ChefId:     uuid.NewString(),
-			FirstName:  randString(16),
-			LastName:   randString(16),
-			Dob:        "00-00-0000",
-			IsHeadChef: true,
-		}
-		chef := &model.Chef{
-			ChefId:     uuid.NewString(),
-			FirstName:  randString(16),
-			LastName:   randString(16),
-			Dob:        "00-00-0000",
-			IsHeadChef: false,
+		owner := &model.Owner{
+			OwnerId:   uuid.NewString(),
+			FirstName: randString(16),
+			LastName:  randString(16),
+			Dob:       "00-00-0000",
 		}
 		for j := 0; j < 10; j++ {
-			doc := restaurantSkeleton()
-			doc.Chefs = append(doc.Chefs, *headChef)
-			doc.Chefs = append(doc.Chefs, *chef)
-			docs = append(docs, doc)
+			docs[i].Owner = *owner
 		}
 	}
-
-	util.Close()
+	return docs
 }
 
 func loadIndices() {
-	// TODO: implement
-	// create the following indices:
-	// restaurantId_1
-	// firstName_1_lastName_1
-	// city_1
-	// state_1
-	// country_1
+	util := util2.NewMongoDbUtil("")
+	idIdx := mongo.IndexModel{ // restaurantId_1
+		Keys: bson.D{{"restaurantId", 1}},
+	}
+	ownerIdx := mongo.IndexModel{ // firstName_text_lastName_text
+		Keys: bson.D{{"owner.firstName", "text"},
+			{"owner.lastName", "text"}},
+	}
+	cityIdx := mongo.IndexModel{ // city_text
+		Keys: bson.D{{"address.city", "text"}},
+	}
+	stateIdx := mongo.IndexModel{ // state_text
+		Keys: bson.D{{"address.state", "text"}},
+	}
+	countryIdx := mongo.IndexModel{ // country_text
+		Keys: bson.D{{"address.country", "text"}},
+	}
+
+	util.CreateIndex(idIdx)
+	util.CreateIndex(ownerIdx)
+	util.CreateIndex(cityIdx)
+	util.CreateIndex(stateIdx)
+	util.CreateIndex(countryIdx)
+	util.Close()
 }
 
 func restaurantSkeleton() model.Restaurant {
@@ -108,7 +150,7 @@ func restaurantSkeleton() model.Restaurant {
 		RestaurantId:   uuid.NewString(),
 		MetaData:       model.Metadata{},
 		Address:        model.Address{},
-		Owners:         []model.Owner{},
+		Owner:          model.Owner{},
 		Chefs:          []model.Chef{},
 		Menu: []model.MenuItem{
 			{
