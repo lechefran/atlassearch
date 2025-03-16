@@ -20,6 +20,9 @@ func main() {
 			return
 		}
 	})
+	mux.HandleFunc("POST /run-install", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+	})
 
 	// column scan handlers
 	mux.HandleFunc("GET /get-restaurant", func(w http.ResponseWriter, r *http.Request) {
