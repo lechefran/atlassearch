@@ -23,6 +23,7 @@ type Address struct {
 	City      string `json:"city" bson:"city"`
 	State     string `json:"state" bson:"state"`
 	Zip       string `json:"zip" bson:"zip"`
+	Country   string `json:"country" bson:"country"`
 }
 
 type Owner struct {
@@ -43,8 +44,10 @@ type Chef struct {
 type MenuItem struct {
 	Type     string `json:"type" bson:"type"`
 	DishName string `json:"dishName" bson:"dishName"`
-	Price    struct {
-		Dollars int `json:"dollars" bson:"dollars"`
-		Cents   int `json:"cents" bson:"cents"`
-	} `json:"price" bson:"price"`
+	Price    Price  `json:"price" bson:"price"`
+}
+
+type Price struct {
+	Dollars int `json:"dollars" bson:"dollars"`
+	Cents   int `json:"cents" bson:"cents"`
 }

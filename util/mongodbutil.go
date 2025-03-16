@@ -79,12 +79,14 @@ func (u *MongoDBUtil) Query(d bson.D) []byte {
 	return res
 }
 
-func (u *MongoDBUtil) QueryMultiple(m bson.M) [][]byte {
+func (u *MongoDBUtil) QueryMultiple(d bson.D) [][]byte {
 	var res [][]byte
-	cur, err := u.client.Database(u.db).Collection(u.collection).Find(context.TODO(), m, options.Find())
-	if err != nil {
+	cur, err := u.client.Database(u.db).Collection(u.collection).Find(context.TODO(), d, options.Find())
+	if errors.Is(err, mongo.ErrNoDocuments) {
 		fmt.Printf("No document was found in %s collection for given query", u.collection)
 		return res
+	} else if err != nil {
+		panic(err)
 	}
 
 	for cur.Next(context.TODO()) {

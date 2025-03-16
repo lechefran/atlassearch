@@ -1,7 +1,10 @@
 package load
 
 import (
+	"atlassearch/model"
 	dbutil "atlassearch/util"
+	"github.com/google/uuid"
+	"math/rand"
 )
 
 var creationStatsMap map[string]int
@@ -37,6 +40,49 @@ func loadIndices() {
 	// country_1
 }
 
-func createRestaurantDocument() {
-	// TODO: implement
+func restaurantSkeleton() model.Restaurant {
+	r := model.Restaurant{
+		RestaurantName: "Restaurant " + randString(16),
+		RestaurantId:   uuid.NewString(),
+		MetaData:       model.Metadata{},
+		Address:        model.Address{},
+		Owners:         []model.Owner{},
+		Chefs:          []model.Chef{},
+		Menu: []model.MenuItem{
+			{
+				Type:     "DISH",
+				DishName: "DISH NUMBER 1",
+				Price:    model.Price{Dollars: 1, Cents: 99},
+			},
+			{
+				Type:     "DISH",
+				DishName: "DISH NUMBER 2",
+				Price:    model.Price{Dollars: 1, Cents: 99},
+			},
+			{
+				Type:     "DISH",
+				DishName: "DISH NUMBER 3",
+				Price:    model.Price{Dollars: 1, Cents: 99},
+			},
+			{
+				Type:     "DISH",
+				DishName: "DISH NUMBER 4",
+				Price:    model.Price{Dollars: 1, Cents: 99},
+			},
+			{
+				Type:     "DISH",
+				DishName: "DISH NUMBER 5",
+				Price:    model.Price{Dollars: 1, Cents: 99},
+			},
+		},
+	}
+	return r
+}
+
+func randString(length int) string {
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = byte(rand.Intn(26) + 65)
+	}
+	return string(b)
 }
