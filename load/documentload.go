@@ -13,7 +13,7 @@ import (
 	"math/rand"
 )
 
-func prepareCollection() {
+func PrepareCollection() {
 	util := util2.NewMongoDbUtil("")
 
 	docCount := util.QueryMany(bson.D{})
@@ -117,31 +117,42 @@ func createDocuments() []model.Restaurant {
 	return docs
 }
 
-func loadIndices() {
-	util := util2.NewMongoDbUtil("")
-	idIdx := mongo.IndexModel{ // restaurantId_1
-		Keys: bson.D{{"restaurantId", 1}},
+func DummyPreparation() { // dummy test function
+	var docs []model.Restaurant
+	for i := 0; i < 10; i++ {
+		doc := restaurantSkeleton()
+		doc.RestaurantName = randString(16)
+		doc.MetaData.Type = randString(8)
+		doc.MetaData.OperatingHours = []int{0, 24}
+		doc.MetaData.PhoneNumber = randString(10)
+		doc.MetaData.Email = randString(16)
+		doc.MetaData.IsActive = true
+		doc.Address.AddressId = uuid.NewString()
+		doc.Address.City = randString(16)
+		doc.Address.State = randString(16)
+		doc.Address.Zip = randString(5)
+		doc.Address.Country = randString(16)
+		doc.Owner.OwnerId = uuid.NewString()
+		doc.Owner.FirstName = randString(16)
+		doc.Owner.LastName = randString(16)
+		doc.Owner.Dob = randString(10)
+		doc.Chefs = append(doc.Chefs, model.Chef{
+			ChefId:     uuid.NewString(),
+			FirstName:  randString(16),
+			LastName:   randString(16),
+			Dob:        randString(10),
+			IsHeadChef: true,
+		})
+		doc.Menu = append(doc.Menu, model.MenuItem{
+			Type:     randString(8),
+			DishName: randString(16),
+			Price: model.Price{
+				Dollars: 0,
+				Cents:   0,
+			},
+		})
+		docs = append(docs, doc)
 	}
-	ownerIdx := mongo.IndexModel{ // firstName_text_lastName_text
-		Keys: bson.D{{"owner.firstName", "text"},
-			{"owner.lastName", "text"}},
-	}
-	cityIdx := mongo.IndexModel{ // city_text
-		Keys: bson.D{{"address.city", "text"}},
-	}
-	stateIdx := mongo.IndexModel{ // state_text
-		Keys: bson.D{{"address.state", "text"}},
-	}
-	countryIdx := mongo.IndexModel{ // country_text
-		Keys: bson.D{{"address.country", "text"}},
-	}
-
-	util.CreateIndex(idIdx)
-	util.CreateIndex(ownerIdx)
-	util.CreateIndex(cityIdx)
-	util.CreateIndex(stateIdx)
-	util.CreateIndex(countryIdx)
-	util.Close()
 }
 
 func restaurantSkeleton() model.Restaurant {
