@@ -1,8 +1,10 @@
 package main
 
 import (
+	"atlassearch/load"
 	"atlassearch/model"
 	"encoding/json"
+	"log"
 	"net/http"
 )
 
@@ -21,7 +23,32 @@ func main() {
 		}
 	})
 	mux.HandleFunc("POST /run-install", func(w http.ResponseWriter, r *http.Request) {
+		res := model.StatusResponse{}
+		req := model.InstallRequest{}
 		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		} else {
+			if req.Install == "" {
+				http.Error(w, "Install required: full or dummy", http.StatusBadRequest)
+			} else if req.Install == "dummy" {
+				log.Println("Starting dummy installation...")
+				load.DummyPreparation()
+			} else {
+				log.Println("Starting full installation...")
+				load.PrepareCollection()
+			}
+		}
+		res = model.StatusResponse{
+			Code:  http.StatusAccepted,
+			Title: http.StatusText(http.StatusAccepted),
+			Msg:   "Starting installation...",
+		}
+		if err := json.NewEncoder(w).Encode(res); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	})
 
 	// column scan handlers
