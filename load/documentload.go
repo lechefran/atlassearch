@@ -159,10 +159,12 @@ func restaurantSkeleton() model.Restaurant {
 	r := model.Restaurant{
 		RestaurantName: "Restaurant " + randString(16),
 		RestaurantId:   uuid.NewString(),
-		MetaData:       model.Metadata{},
-		Address:        model.Address{},
-		Owner:          model.Owner{},
-		Chefs:          []model.Chef{},
+		MetaData: model.Metadata{
+			Type: "restaurant",
+		},
+		Address: model.Address{},
+		Owner:   model.Owner{},
+		Chefs:   []model.Chef{},
 		Menu: []model.MenuItem{
 			{
 				Type:     "DISH",

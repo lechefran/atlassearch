@@ -158,6 +158,19 @@ func (u *MongoDBUtil) CreateSession() (*mongo.Session, error) {
 	return u.client.StartSession(nil)
 }
 
+func (u *MongoDBUtil) Aggregate(p mongo.Pipeline) [][]byte {
+	var res [][]byte
+	cur, err := u.client.Database(u.db).Collection(u.collection).Aggregate(context.Background(), p, options.Aggregate())
+	if err != nil {
+		panic(err)
+	}
+
+	if err = cur.All(context.TODO(), &res); err != nil {
+		panic(err)
+	}
+	return res
+}
+
 func (u *MongoDBUtil) explain(d bson.D, o model.SearchOptions) {
 	if o.Explain {
 		var explain bson.M

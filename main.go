@@ -6,6 +6,7 @@ import (
 	util2 "atlassearch/util"
 	"encoding/json"
 	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 	"log"
 	"net/http"
 	"strconv"
@@ -55,20 +56,22 @@ func main() {
 	})
 
 	// column and index scan handlers
-	mux.HandleFunc("GET /get-restaurant", func(w http.ResponseWriter, r *http.Request) {
+	// TODO: remove
+	mux.HandleFunc("GET /scan/get-restaurant", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		opts := createSearchOptions(r)
 		params := createSearchParams(r)
 
 		util := util2.NewMongoDbUtil("")
 		restaurant := util.Query(*params, *opts)
+		util.Close()
+
 		msg := ""
 		if len(restaurant) > 0 {
 			msg = "Found a restaurant!"
 		} else {
 			msg = "No restaurant was found!"
 		}
-		util.Close()
 
 		res := model.RestaurantResponse{
 			Status: model.Status{
@@ -83,20 +86,48 @@ func main() {
 			return
 		}
 	})
-	mux.HandleFunc("GET /get-all-restaurants", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /scan/get-restaurants", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		opts := createSearchOptions(r)
 		params := createSearchParams(r)
 
 		util := util2.NewMongoDbUtil("")
 		restaurants := util.QueryMany(*params, *opts)
+		util.Close()
+
 		msg := ""
 		if len(restaurants) > 0 && len(restaurants[0]) > 0 {
 			msg = "Found a restaurant!"
 		} else {
 			msg = "No restaurant was found!"
 		}
+
+		res := model.RestaurantResponse{
+			Status: model.Status{
+				Code: http.StatusOK,
+				Msg:  msg,
+			},
+			Response: restaurants,
+		}
+		if err := json.NewEncoder(w).Encode(res); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	})
+	mux.HandleFunc("GET /scan/get-all-restaurants", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		opts := createSearchOptions(r)
+
+		util := util2.NewMongoDbUtil("")
+		restaurants := util.QueryMany(bson.D{{}}, *opts)
 		util.Close()
+
+		msg := ""
+		if len(restaurants) > 0 && len(restaurants[0]) > 0 {
+			msg = "Found a restaurant!"
+		} else {
+			msg = "No restaurant was found!"
+		}
 
 		res := model.RestaurantResponse{
 			Status: model.Status{
@@ -112,11 +143,85 @@ func main() {
 	})
 
 	// atlas search handlers
-	mux.HandleFunc("GET /get-restaurant-as", func(w http.ResponseWriter, r *http.Request) {
+	// TODO: remove
+	mux.HandleFunc("GET /atlas-search/get-restaurant", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		util := util2.NewMongoDbUtil("")
+		search := bson.D{} // TODO: implement
+		limit := bson.D{{"$limit", 1}}
+		restaurants := util.Aggregate(mongo.Pipeline{search, limit})
+		util.Close()
+
+		msg := ""
+		if len(restaurants) > 0 && len(restaurants[0]) > 0 {
+			msg = "Found a restaurant!"
+		} else {
+			msg = "No restaurant was found!"
+		}
+
+		res := model.RestaurantResponse{
+			Status: model.Status{
+				Code: http.StatusOK,
+				Msg:  msg,
+			},
+			Response: restaurants,
+		}
+		if err := json.NewEncoder(w).Encode(res); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	})
-	mux.HandleFunc("GET /get-all-restaurants-as", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /atlas-search/get-restaurants", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		util := util2.NewMongoDbUtil("")
+		search := bson.D{} // TODO: implement
+		restaurants := util.Aggregate(mongo.Pipeline{search})
+		util.Close()
+
+		msg := ""
+		if len(restaurants) > 0 && len(restaurants[0]) > 0 {
+			msg = "Found a restaurant!"
+		} else {
+			msg = "No restaurant was found!"
+		}
+
+		res := model.RestaurantResponse{
+			Status: model.Status{
+				Code: http.StatusOK,
+				Msg:  msg,
+			},
+			Response: restaurants,
+		}
+		if err := json.NewEncoder(w).Encode(res); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	})
+	mux.HandleFunc("GET /atlas-search/get-all-restaurants", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		util := util2.NewMongoDbUtil("")
+		search := bson.D{{"$search", bson.D{}}}
+		restaurants := util.Aggregate(mongo.Pipeline{search})
+		util.Close()
+
+		msg := ""
+		if len(restaurants) > 0 && len(restaurants[0]) > 0 {
+			msg = "Found a restaurant!"
+		} else {
+			msg = "No restaurant was found!"
+		}
+
+		res := model.RestaurantResponse{
+			Status: model.Status{
+				Code: http.StatusOK,
+				Msg:  msg,
+			},
+			Response: restaurants,
+		}
+		if err := json.NewEncoder(w).Encode(res); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	})
 }
 
