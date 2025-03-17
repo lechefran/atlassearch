@@ -10,6 +10,7 @@ type SearchRequest struct {
 	State   string `json:"state"`
 	Country string `json:"country"`
 	Explain string `json:"explanation"`
+	Scan    string `json:"scan"`
 }
 
 type InstallRequest struct {

@@ -62,7 +62,7 @@ func (u *MongoDBUtil) Collection(c string) *MongoDBUtil {
 	return u
 }
 
-func (u *MongoDBUtil) Query(d bson.D, o ...model.ExplainOptions) []byte {
+func (u *MongoDBUtil) Query(d bson.D, o ...model.SearchOptions) []byte {
 	var res []byte
 	doc := bson.M{}
 	if err := u.client.Database(u.db).Collection(u.collection).FindOne(context.TODO(), d).Decode(&doc); errors.Is(err, mongo.ErrNoDocuments) {
@@ -83,7 +83,7 @@ func (u *MongoDBUtil) Query(d bson.D, o ...model.ExplainOptions) []byte {
 	return res
 }
 
-func (u *MongoDBUtil) QueryMany(d bson.D, o ...model.ExplainOptions) [][]byte {
+func (u *MongoDBUtil) QueryMany(d bson.D, o ...model.SearchOptions) [][]byte {
 	var res [][]byte
 	cur, err := u.client.Database(u.db).Collection(u.collection).Find(context.TODO(), d, options.Find())
 	if errors.Is(err, mongo.ErrNoDocuments) {
@@ -158,7 +158,7 @@ func (u *MongoDBUtil) CreateSession() (*mongo.Session, error) {
 	return u.client.StartSession(nil)
 }
 
-func (u *MongoDBUtil) explain(d bson.D, o model.ExplainOptions) {
+func (u *MongoDBUtil) explain(d bson.D, o model.SearchOptions) {
 	if o.Explain {
 		var explain bson.M
 		exp := bson.D{

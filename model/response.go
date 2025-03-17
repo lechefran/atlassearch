@@ -5,3 +5,13 @@ type StatusResponse struct {
 	Title string `json:"title"`
 	Msg   string `json:"message"`
 }
+
+type RestaurantResponse struct {
+	Status   Status   `json:"status"`
+	Response [][]byte `json:"response"`
+}
+
+type Status struct {
+	Code int    `json:"code"`
+	Msg  string `json:"message"`
+}
