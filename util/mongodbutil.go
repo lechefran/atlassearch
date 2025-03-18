@@ -66,17 +66,8 @@ func (u *MongoDBUtil) Collection(c string) *MongoDBUtil {
 
 func (u *MongoDBUtil) Query(d bson.D, o ...model.SearchOptions) []byte {
 	var res []byte
-	opts := options.FindOne()
-	if len(o) > 0 && o[0].Explain {
-		if o[0].ScanType == "column" {
-			opts = options.FindOne().SetHint(bson.D{{"$natural", 1}})
-		} else if o[0].ScanType != "column" && o[0].SearchIndex != nil {
-			opts = options.FindOne().SetHint(o[0].SearchIndex.(string))
-		}
-	}
-
 	doc := bson.D{}
-	if err := u.client.Database(u.db).Collection(u.collection).FindOne(context.TODO(), d, opts).Decode(&doc); errors.Is(err, mongo.ErrNoDocuments) {
+	if err := u.client.Database(u.db).Collection(u.collection).FindOne(context.TODO(), d).Decode(&doc); errors.Is(err, mongo.ErrNoDocuments) {
 		fmt.Printf("No document was found in %s collection for given query\n", u.collection)
 		return res
 	} else if err != nil {
@@ -96,18 +87,7 @@ func (u *MongoDBUtil) Query(d bson.D, o ...model.SearchOptions) []byte {
 
 func (u *MongoDBUtil) QueryMany(d bson.D, o ...model.SearchOptions) [][]byte {
 	var res [][]byte
-	opts := options.Find()
-	if len(o) > 0 && o[0].Explain {
-		hint := bson.M{}
-		hint["$natural"] = 1
-		if o[0].ScanType == "column" {
-			opts.SetHint(hint)
-		} else if o[0].ScanType != "column" && o[0].SearchIndex != nil {
-			opts.SetHint(o[0].SearchIndex.(string))
-		}
-	}
-
-	cur, err := u.client.Database(u.db).Collection(u.collection).Find(context.TODO(), d, opts)
+	cur, err := u.client.Database(u.db).Collection(u.collection).Find(context.TODO(), d)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		fmt.Printf("No document was found in %s collection for given query\n", u.collection)
 		return res

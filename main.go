@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 )
 
 const MongoConnString = ""
@@ -169,8 +168,7 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		util := util2.NewMongoDbUtil(MongoConnString).Database(MongoDatabase).Collection(MongoCollection)
 		search := createAtlasSearchParams(r.URL.Query(), model.ParameterOptions{
-			IsAtlasSearchQuery: true,
-			SearchIndex:        r.URL.Query().Get("searchIndex"),
+			SearchIndex: r.URL.Query().Get("searchIndex"),
 		})
 		limit := bson.D{{"$limit", 1}}
 		restaurants := util.Aggregate(mongo.Pipeline{*search, limit})
@@ -269,29 +267,10 @@ func createSearchOptions(r *http.Request) *model.SearchOptions {
 	} else {
 		res.Explain = explain
 	}
-	if scan := r.URL.Query().Get("scanType"); scan == "" {
-		res.ScanType = "column"
-		res.SearchIndex = bson.D{{"$natural", 1}}
-	} else {
-		res.ScanType = strings.ToLower(scan)
-		if res.ScanType != "column" {
-			res.SearchIndex = r.URL.Query().Get("searchIndex")
-		}
-	}
 	return &res
 }
 
-func createParams(v url.Values, o ...model.ParameterOptions) *bson.D {
-	res := bson.D{}
-	if len(o) > 0 && o[0].IsAtlasSearchQuery {
-		res = *createAtlasSearchParams(v, o[0])
-	} else {
-		res = *createSearchParams(v, o[0])
-	}
-	return &res
-}
-
-func createSearchParams(v url.Values, o ...model.ParameterOptions) *bson.D {
+func createSearchParams(v url.Values) *bson.D {
 	res := bson.D{}
 	for k, v := range v {
 		log.Printf("%s = %s\n", k, v[0])
@@ -315,7 +294,7 @@ func createSearchParams(v url.Values, o ...model.ParameterOptions) *bson.D {
 func createAtlasSearchParams(v url.Values, o ...model.ParameterOptions) *bson.D {
 	res := bson.D{}
 	idx := ""
-	if len(o) > 0 && o[0].IsAtlasSearchQuery && o[0].SearchIndex != "" {
+	if o[0].SearchIndex != "" {
 		idx = o[0].SearchIndex
 	} else {
 		log.Println("No search index was provided. Atlas search query will use dynamic index")
