@@ -13,14 +13,20 @@ import (
 	"math/rand"
 )
 
+const MongoConnString = ""
+const MongoDatabase = ""
+const MongoCollection = ""
+
 func PrepareCollection() {
-	util := util2.NewMongoDbUtil("")
+	util := util2.NewMongoDbUtil(MongoConnString).Database(MongoDatabase).Collection(MongoCollection)
 
 	docCount := util.QueryMany(bson.D{})
 	if len(docCount) == 1000000 {
 		log.Println("Documents are already loaded in collection. Skipping document load step...")
 	} else {
 		log.Println("Loading documents to collection...")
+		util.Clear()
+		util.ClearIndices()
 		wc := writeconcern.Majority()
 		txnOpts := options.Transaction().SetWriteConcern(wc)
 		session, err := util.CreateSession()
@@ -30,26 +36,35 @@ func PrepareCollection() {
 
 		defer session.EndSession(context.Background())
 		res, err := session.WithTransaction(context.TODO(), func(ctx context.Context) (interface{}, error) {
+			log.Println("Starting document creation...")
 			docs := createDocuments()
+			log.Println("Starting document insertion...")
 			resInsert := util.InsertMany(docs)
 
+			log.Println("Starting index initialization...")
 			idIdx := mongo.IndexModel{ // restaurantId_1
-				Keys: bson.D{{"restaurantId", 1}},
+				Keys:    bson.D{{"restaurantId", 1}},
+				Options: options.Index().SetUnique(true),
 			}
 			ownerIdx := mongo.IndexModel{ // firstName_text_lastName_text
-				Keys: bson.D{{"owner.firstName", "text"},
-					{"owner.lastName", "text"}},
+				Keys: bson.D{{"owner.firstName", 1},
+					{"owner.lastName", 1}},
+				Options: options.Index().SetUnique(true),
 			}
 			cityIdx := mongo.IndexModel{ // city_text
-				Keys: bson.D{{"address.city", "text"}},
+				Keys:    bson.D{{"address.city", 1}},
+				Options: options.Index().SetUnique(true),
 			}
 			stateIdx := mongo.IndexModel{ // state_text
-				Keys: bson.D{{"address.state", "text"}},
+				Keys:    bson.D{{"address.state", 1}},
+				Options: options.Index().SetUnique(true),
 			}
 			countryIdx := mongo.IndexModel{ // country_text
-				Keys: bson.D{{"address.country", "text"}},
+				Keys:    bson.D{{"address.country", 1}},
+				Options: options.Index().SetUnique(true),
 			}
 
+			log.Println("Starting index creation...")
 			resIdx := util.CreateIndex(idIdx) &&
 				util.CreateIndex(ownerIdx) &&
 				util.CreateIndex(cityIdx) &&
@@ -118,41 +133,100 @@ func createDocuments() []model.Restaurant {
 }
 
 func DummyPreparation() { // dummy test function
-	var docs []model.Restaurant
-	for i := 0; i < 10; i++ {
-		doc := restaurantSkeleton()
-		doc.RestaurantName = randString(16)
-		doc.MetaData.Type = randString(8)
-		doc.MetaData.OperatingHours = []int{0, 24}
-		doc.MetaData.PhoneNumber = randString(10)
-		doc.MetaData.Email = randString(16)
-		doc.MetaData.IsActive = true
-		doc.Address.AddressId = uuid.NewString()
-		doc.Address.City = randString(16)
-		doc.Address.State = randString(16)
-		doc.Address.Zip = randString(5)
-		doc.Address.Country = randString(16)
-		doc.Owner.OwnerId = uuid.NewString()
-		doc.Owner.FirstName = randString(16)
-		doc.Owner.LastName = randString(16)
-		doc.Owner.Dob = randString(10)
-		doc.Chefs = append(doc.Chefs, model.Chef{
-			ChefId:     uuid.NewString(),
-			FirstName:  randString(16),
-			LastName:   randString(16),
-			Dob:        randString(10),
-			IsHeadChef: true,
-		})
-		doc.Menu = append(doc.Menu, model.MenuItem{
-			Type:     randString(8),
-			DishName: randString(16),
-			Price: model.Price{
-				Dollars: 0,
-				Cents:   0,
-			},
-		})
-		docs = append(docs, doc)
+	util := util2.NewMongoDbUtil(MongoConnString).Database(MongoDatabase).Collection(MongoCollection)
+
+	docCount := util.QueryMany(bson.D{})
+	if len(docCount) == 10 {
+		log.Println("Documents are already loaded in collection. Skipping document load step...")
+	} else {
+		log.Println("Loading documents to collection...")
+		wc := writeconcern.Majority()
+		txnOpts := options.Transaction().SetWriteConcern(wc)
+		session, err := util.CreateSession()
+		if err != nil {
+			panic(err)
+		}
+
+		defer session.EndSession(context.Background())
+		res, err := session.WithTransaction(context.TODO(), func(ctx context.Context) (interface{}, error) {
+			log.Println("Starting document creation...")
+			var docs []model.Restaurant
+			for i := 0; i < 10; i++ {
+				doc := restaurantSkeleton()
+				doc.RestaurantName = randString(16)
+				doc.MetaData.Type = randString(8)
+				doc.MetaData.OperatingHours = []int{0, 24}
+				doc.MetaData.PhoneNumber = randString(10)
+				doc.MetaData.Email = randString(16)
+				doc.MetaData.IsActive = true
+				doc.Address.AddressId = uuid.NewString()
+				doc.Address.City = randString(16)
+				doc.Address.State = randString(16)
+				doc.Address.Zip = randString(5)
+				doc.Address.Country = randString(16)
+				doc.Owner.OwnerId = uuid.NewString()
+				doc.Owner.FirstName = randString(16)
+				doc.Owner.LastName = randString(16)
+				doc.Owner.Dob = randString(10)
+				doc.Chefs = append(doc.Chefs, model.Chef{
+					ChefId:     uuid.NewString(),
+					FirstName:  randString(16),
+					LastName:   randString(16),
+					Dob:        randString(10),
+					IsHeadChef: true,
+				})
+				doc.Menu = append(doc.Menu, model.MenuItem{
+					Type:     randString(8),
+					DishName: randString(16),
+					Price: model.Price{
+						Dollars: 0,
+						Cents:   0,
+					},
+				})
+				docs = append(docs, doc)
+			}
+
+			log.Println("Starting document insertion...")
+			resInsert := util.InsertMany(docs)
+
+			log.Println("Starting index initialization...")
+			idIdx := mongo.IndexModel{ // restaurantId_1
+				Keys:    bson.D{{"restaurantId", 1}},
+				Options: options.Index().SetUnique(true),
+			}
+			ownerIdx := mongo.IndexModel{ // firstName_text_lastName_text
+				Keys: bson.D{{"owner.firstName", 1},
+					{"owner.lastName", 1}},
+				Options: options.Index().SetUnique(true),
+			}
+			cityIdx := mongo.IndexModel{ // city_text
+				Keys:    bson.D{{"address.city", 1}},
+				Options: options.Index().SetUnique(true),
+			}
+			stateIdx := mongo.IndexModel{ // state_text
+				Keys:    bson.D{{"address.state", 1}},
+				Options: options.Index().SetUnique(true),
+			}
+			countryIdx := mongo.IndexModel{ // country_text
+				Keys:    bson.D{{"address.country", 1}},
+				Options: options.Index().SetUnique(true),
+			}
+
+			log.Println("Starting index creation...")
+			resIdx := util.CreateIndex(idIdx) &&
+				util.CreateIndex(ownerIdx) &&
+				util.CreateIndex(cityIdx) &&
+				util.CreateIndex(stateIdx) &&
+				util.CreateIndex(countryIdx)
+			return resInsert && resIdx, nil
+		}, txnOpts)
+		if res.(bool) {
+			log.Println("All preparation steps have been executed successfully")
+		} else {
+			log.Println("Something went wrong in the preparation steps")
+		}
 	}
+	util.Close()
 }
 
 func restaurantSkeleton() model.Restaurant {

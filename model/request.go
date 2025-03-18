@@ -1,16 +1,12 @@
 package model
 
 type SearchRequest struct {
-	Id       string `json:"id"`
-	HeadChef struct {
-		FirstName string `json:"firstName"`
-		LastName  string `json:"lastName"`
-	} `json:"headChef"`
-	City    string `json:"city"`
-	State   string `json:"state"`
-	Country string `json:"country"`
-	Explain string `json:"explanation"`
-	Scan    string `json:"scan"`
+	Id        string `json:"id" bson:"restaurantId,omitempty"`
+	FirstName string `json:"firstName" bson:"owner.firstName,omitempty"`
+	LastName  string `json:"lastName" bson:"owner.lastName,omitempty"`
+	City      string `json:"city" bson:"address.city,omitempty"`
+	State     string `json:"state" bson:"address.state,omitempty"`
+	Country   string `json:"country" bson:"address.country,omitempty"`
 }
 
 type InstallRequest struct {

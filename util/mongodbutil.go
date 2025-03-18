@@ -30,7 +30,7 @@ func NewMongoDbUtil(conn string) *MongoDBUtil {
 		bson.D{{"ping", 1}}).Err(); err != nil {
 		panic(err)
 	}
-	fmt.Println("Successfully connected to MongoDB!")
+	log.Println("Successfully connected to MongoDB!")
 	return &MongoDBUtil{
 		client: client,
 	}
@@ -64,16 +64,16 @@ func (u *MongoDBUtil) Collection(c string) *MongoDBUtil {
 
 func (u *MongoDBUtil) Query(d bson.D, o ...model.SearchOptions) []byte {
 	var res []byte
-	doc := bson.M{}
+	doc := bson.D{}
 	if err := u.client.Database(u.db).Collection(u.collection).FindOne(context.TODO(), d).Decode(&doc); errors.Is(err, mongo.ErrNoDocuments) {
-		fmt.Printf("No document was found in %s collection for given query", u.collection)
+		fmt.Printf("No document was found in %s collection for given query\n", u.collection)
 		return res
 	} else if err != nil {
 		panic(err)
 	}
 
-	if len(o) > 0 {
-		u.explain(d, o[0])
+	if len(o) > 0 && o[0].Explain {
+		u.explain(d)
 	}
 
 	res, err := bson.Marshal(doc)
@@ -85,16 +85,16 @@ func (u *MongoDBUtil) Query(d bson.D, o ...model.SearchOptions) []byte {
 
 func (u *MongoDBUtil) QueryMany(d bson.D, o ...model.SearchOptions) [][]byte {
 	var res [][]byte
-	cur, err := u.client.Database(u.db).Collection(u.collection).Find(context.TODO(), d, options.Find())
+	cur, err := u.client.Database(u.db).Collection(u.collection).Find(context.TODO(), d)
 	if errors.Is(err, mongo.ErrNoDocuments) {
-		fmt.Printf("No document was found in %s collection for given query", u.collection)
+		fmt.Printf("No document was found in %s collection for given query\n", u.collection)
 		return res
 	} else if err != nil {
 		panic(err)
 	}
 
-	if len(o) > 0 {
-		u.explain(d, o[0])
+	if len(o) > 0 && o[0].Explain {
+		u.explain(d)
 	}
 
 	for cur.Next(context.TODO()) {
@@ -155,33 +155,38 @@ func (u *MongoDBUtil) CreateIndex(m mongo.IndexModel) bool {
 }
 
 func (u *MongoDBUtil) CreateSession() (*mongo.Session, error) {
-	return u.client.StartSession(nil)
+	return u.client.StartSession()
 }
 
 func (u *MongoDBUtil) Aggregate(p mongo.Pipeline) [][]byte {
 	var res [][]byte
-	cur, err := u.client.Database(u.db).Collection(u.collection).Aggregate(context.Background(), p, options.Aggregate())
+	cur, err := u.client.Database(u.db).Collection(u.collection).Aggregate(context.Background(), p)
 	if err != nil {
 		panic(err)
 	}
 
-	if err = cur.All(context.TODO(), &res); err != nil {
-		panic(err)
+	for cur.Next(context.TODO()) {
+		doc := bson.M{}
+		if err := cur.Decode(&doc); err != nil {
+			panic(err)
+		} else {
+			if tmp, err := bson.Marshal(doc); err == nil {
+				res = append(res, tmp)
+			}
+		}
 	}
 	return res
 }
 
-func (u *MongoDBUtil) explain(d bson.D, o model.SearchOptions) {
-	if o.Explain {
-		var explain bson.M
-		exp := bson.D{
-			{Key: "explain", Value: d},
-			{Key: "verbosity", Value: "executionStats"},
-		}
-		expRes := u.client.Database(u.db).RunCommand(context.TODO(), exp)
-		if err := expRes.Decode(&explain); err != nil {
-			panic(err)
-		}
-		log.Println(explain)
+func (u *MongoDBUtil) explain(d bson.D) {
+	var explain bson.D
+	exp := bson.D{
+		{Key: "explain", Value: d},
+		{Key: "verbosity", Value: "executionStats"},
 	}
+	expRes := u.client.Database(u.db).RunCommand(context.TODO(), exp)
+	if err := expRes.Decode(&explain); err != nil {
+		panic(err)
+	}
+	log.Println(explain)
 }

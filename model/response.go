@@ -7,8 +7,8 @@ type StatusResponse struct {
 }
 
 type RestaurantResponse struct {
-	Status   Status   `json:"status"`
-	Response [][]byte `json:"response"`
+	Status   Status       `json:"status"`
+	Response []Restaurant `json:"response"`
 }
 
 type Status struct {
