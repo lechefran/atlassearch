@@ -3,11 +3,13 @@ package util
 import (
 	"atlassearch/model"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/mongo/readpref"
 	"log"
 )
 
@@ -179,14 +181,16 @@ func (u *MongoDBUtil) Aggregate(p mongo.Pipeline) [][]byte {
 }
 
 func (u *MongoDBUtil) explain(d bson.D) {
-	var explain bson.D
-	exp := bson.D{
-		{Key: "explain", Value: d},
-		{Key: "verbosity", Value: "executionStats"},
+	cmd := bson.D{{"explain", bson.D{{"find", "search"}, {"filter", d}}}}
+	opts := options.RunCmd().SetReadPreference(readpref.Primary())
+
+	var result bson.M
+	if err := u.client.Database(u.db).RunCommand(context.TODO(), cmd, opts).Decode(&result); err != nil {
+		log.Fatal(err)
 	}
-	expRes := u.client.Database(u.db).RunCommand(context.TODO(), exp)
-	if err := expRes.Decode(&explain); err != nil {
-		panic(err)
+	if formattedResult, err := json.MarshalIndent(result, "", "	"); err != nil {
+		log.Fatal(err)
+	} else {
+		fmt.Println(string(formattedResult))
 	}
-	log.Println(explain)
 }

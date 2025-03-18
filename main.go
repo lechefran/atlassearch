@@ -14,9 +14,9 @@ import (
 	"strings"
 )
 
-const MongoConnString = ""
-const MongoDatabase = ""
-const MongoCollection = ""
+const MongoConnString = "mongodb+srv://admin:gorvo2-cupfem-vEpkuh@huddle.fpyye.mongodb.net/?retryWrites=true&w=majority&appName=huddle"
+const MongoDatabase = "demo"
+const MongoCollection = "search"
 
 func main() {
 	mux := http.NewServeMux()
@@ -165,12 +165,12 @@ func main() {
 	mux.HandleFunc("GET /atlas-search/get-restaurant", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		util := util2.NewMongoDbUtil(MongoConnString).Database(MongoDatabase).Collection(MongoCollection)
-		//search := bson.D{{"$search", createSearchParams(r.URL.Query(), model.ParameterOptions{
-		//	IsAtlasSearchQuery: true,
-		//})}}
-		search := bson.D{{"$search", bson.D{{"index", ""}, {"text", bson.D{{"path", ""}, {"query", ""}}}}}}
-		//limit := bson.D{{"$limit", 1}}
-		restaurants := util.Aggregate(mongo.Pipeline{search})
+		search := createAtlasSearchParams(r.URL.Query(), model.ParameterOptions{
+			IsAtlasSearchQuery: true,
+			SearchQuery:        "restaurant-id-search",
+		})
+		limit := bson.D{{"$limit", 1}}
+		restaurants := util.Aggregate(mongo.Pipeline{*search, limit})
 		util.Close()
 
 		res := model.RestaurantResponse{
@@ -253,7 +253,7 @@ func main() {
 	//	}
 	//})
 
-	port := ""
+	port := "8083"
 	log.Println("Listening on port :" + port)
 	err := http.ListenAndServe(":"+port, mux)
 	log.Fatal(err)
@@ -270,6 +270,16 @@ func createSearchOptions(r *http.Request) *model.SearchOptions {
 		res.ScanType = "column"
 	} else {
 		res.ScanType = strings.ToLower(scan)
+	}
+	return &res
+}
+
+func createParams(v url.Values, o ...model.ParameterOptions) *bson.D {
+	res := bson.D{}
+	if len(o) > 0 && o[0].IsAtlasSearchQuery {
+		res = *createAtlasSearchParams(v, o[0])
+	} else {
+		res = *createSearchParams(v, o[0])
 	}
 	return &res
 }
@@ -292,10 +302,41 @@ func createSearchParams(v url.Values, o ...model.ParameterOptions) *bson.D {
 			res = append(res, bson.E{Key: "address.country", Value: v[0]})
 		}
 	}
+	return &res
+}
 
-	if len(o) > 0 && o[0].IsAtlasSearchQuery {
-		return &bson.D{{"$search", res}}
+func createAtlasSearchParams(v url.Values, o ...model.ParameterOptions) *bson.D {
+	res := bson.D{}
+	idx := ""
+	if len(o) > 0 && o[0].IsAtlasSearchQuery && o[0].SearchQuery != "" {
+		idx = o[0].SearchQuery
 	} else {
-		return &res
+		log.Println("No search index was provided. Atlas search query will use dynamic index")
+		idx = "dynamic-search"
 	}
+
+	params := bson.D{{"index", idx}}
+	for k, v := range v {
+		log.Printf("%s = %s\n", k, v[0])
+		if k == "id" {
+			addNestedDoc(&params, "text", bson.D{{"path", "restaurantId"}, {"query", v[0]}})
+		} else if k == "firstName" {
+			addNestedDoc(&params, "text", bson.D{{"path", "owner.firstName"}, {"query", v[0]}})
+		} else if k == "lastName" {
+			addNestedDoc(&params, "text", bson.D{{"path", "owner.lastName"}, {"query", v[0]}})
+		} else if k == "city" {
+			addNestedDoc(&params, "text", bson.D{{"path", "address.city"}, {"query", v[0]}})
+		} else if k == "state" {
+			addNestedDoc(&params, "text", bson.D{{"path", "address.state"}, {"query", v[0]}})
+		} else if k == "country" {
+			addNestedDoc(&params, "text", bson.D{{"path", "address.country"}, {"query", v[0]}})
+		}
+	}
+	addNestedDoc(&res, "$search", params)
+	log.Println(res)
+	return &res
+}
+
+func addNestedDoc(doc *bson.D, key string, nested bson.D) {
+	*doc = append(*doc, bson.E{Key: key, Value: nested})
 }
