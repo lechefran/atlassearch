@@ -49,19 +49,15 @@ func PrepareCollection() {
 			ownerIdx := mongo.IndexModel{ // firstName_text_lastName_text
 				Keys: bson.D{{"owner.firstName", 1},
 					{"owner.lastName", 1}},
-				Options: options.Index().SetUnique(true),
 			}
 			cityIdx := mongo.IndexModel{ // city_text
-				Keys:    bson.D{{"address.city", 1}},
-				Options: options.Index().SetUnique(true),
+				Keys: bson.D{{"address.city", 1}},
 			}
 			stateIdx := mongo.IndexModel{ // state_text
-				Keys:    bson.D{{"address.state", 1}},
-				Options: options.Index().SetUnique(true),
+				Keys: bson.D{{"address.state", 1}},
 			}
 			countryIdx := mongo.IndexModel{ // country_text
-				Keys:    bson.D{{"address.country", 1}},
-				Options: options.Index().SetUnique(true),
+				Keys: bson.D{{"address.country", 1}},
 			}
 
 			log.Println("Starting index creation...")
@@ -151,6 +147,7 @@ func DummyPreparation() { // dummy test function
 		res, err := session.WithTransaction(context.TODO(), func(ctx context.Context) (interface{}, error) {
 			log.Println("Starting document creation...")
 			var docs []model.Restaurant
+			country := randString(16)
 			for i := 0; i < 10; i++ {
 				doc := restaurantSkeleton()
 				doc.RestaurantName = randString(16)
@@ -163,7 +160,7 @@ func DummyPreparation() { // dummy test function
 				doc.Address.City = randString(16)
 				doc.Address.State = randString(16)
 				doc.Address.Zip = randString(5)
-				doc.Address.Country = randString(16)
+				doc.Address.Country = country
 				doc.Owner.OwnerId = uuid.NewString()
 				doc.Owner.FirstName = randString(16)
 				doc.Owner.LastName = randString(16)
@@ -197,19 +194,15 @@ func DummyPreparation() { // dummy test function
 			ownerIdx := mongo.IndexModel{ // firstName_text_lastName_text
 				Keys: bson.D{{"owner.firstName", 1},
 					{"owner.lastName", 1}},
-				Options: options.Index().SetUnique(true),
 			}
 			cityIdx := mongo.IndexModel{ // city_text
-				Keys:    bson.D{{"address.city", 1}},
-				Options: options.Index().SetUnique(true),
+				Keys: bson.D{{"address.city", 1}},
 			}
 			stateIdx := mongo.IndexModel{ // state_text
-				Keys:    bson.D{{"address.state", 1}},
-				Options: options.Index().SetUnique(true),
+				Keys: bson.D{{"address.state", 1}},
 			}
 			countryIdx := mongo.IndexModel{ // country_text
-				Keys:    bson.D{{"address.country", 1}},
-				Options: options.Index().SetUnique(true),
+				Keys: bson.D{{"address.country", 1}},
 			}
 
 			log.Println("Starting index creation...")

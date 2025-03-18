@@ -5,6 +5,7 @@ import (
 	"atlassearch/model"
 	util2 "atlassearch/util"
 	"encoding/json"
+	"fmt"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"log"
@@ -14,9 +15,9 @@ import (
 	"strings"
 )
 
-const MongoConnString = "mongodb+srv://admin:gorvo2-cupfem-vEpkuh@huddle.fpyye.mongodb.net/?retryWrites=true&w=majority&appName=huddle"
-const MongoDatabase = "demo"
-const MongoCollection = "search"
+const MongoConnString = ""
+const MongoDatabase = ""
+const MongoCollection = ""
 
 func main() {
 	mux := http.NewServeMux()
@@ -98,6 +99,8 @@ func main() {
 		opts := createSearchOptions(r)
 		params := createSearchParams(r.URL.Query())
 
+		fmt.Println(fmt.Sprintf("%v", opts))
+
 		util := util2.NewMongoDbUtil(MongoConnString).Database(MongoDatabase).Collection(MongoCollection)
 		restaurants := util.QueryMany(*params, *opts)
 		util.Close()
@@ -167,7 +170,7 @@ func main() {
 		util := util2.NewMongoDbUtil(MongoConnString).Database(MongoDatabase).Collection(MongoCollection)
 		search := createAtlasSearchParams(r.URL.Query(), model.ParameterOptions{
 			IsAtlasSearchQuery: true,
-			SearchQuery:        "restaurant-id-search",
+			SearchIndex:        r.URL.Query().Get("searchIndex"),
 		})
 		limit := bson.D{{"$limit", 1}}
 		restaurants := util.Aggregate(mongo.Pipeline{*search, limit})
@@ -268,8 +271,12 @@ func createSearchOptions(r *http.Request) *model.SearchOptions {
 	}
 	if scan := r.URL.Query().Get("scanType"); scan == "" {
 		res.ScanType = "column"
+		res.SearchIndex = bson.D{{"$natural", 1}}
 	} else {
 		res.ScanType = strings.ToLower(scan)
+		if res.ScanType != "column" {
+			res.SearchIndex = r.URL.Query().Get("searchIndex")
+		}
 	}
 	return &res
 }
@@ -308,8 +315,8 @@ func createSearchParams(v url.Values, o ...model.ParameterOptions) *bson.D {
 func createAtlasSearchParams(v url.Values, o ...model.ParameterOptions) *bson.D {
 	res := bson.D{}
 	idx := ""
-	if len(o) > 0 && o[0].IsAtlasSearchQuery && o[0].SearchQuery != "" {
-		idx = o[0].SearchQuery
+	if len(o) > 0 && o[0].IsAtlasSearchQuery && o[0].SearchIndex != "" {
+		idx = o[0].SearchIndex
 	} else {
 		log.Println("No search index was provided. Atlas search query will use dynamic index")
 		idx = "dynamic-search"
