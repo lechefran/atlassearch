@@ -5,7 +5,6 @@ import (
 	"atlassearch/model"
 	util2 "atlassearch/util"
 	"encoding/json"
-	"fmt"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"log"
@@ -98,8 +97,6 @@ func main() {
 		opts := createSearchOptions(r)
 		params := createSearchParams(r.URL.Query())
 
-		fmt.Println(fmt.Sprintf("%v", opts))
-
 		util := util2.NewMongoDbUtil(MongoConnString).Database(MongoDatabase).Collection(MongoCollection)
 		restaurants := util.QueryMany(*params, *opts)
 		util.Close()
@@ -171,6 +168,7 @@ func main() {
 			SearchIndex: r.URL.Query().Get("searchIndex"),
 		})
 		limit := bson.D{{"$limit", 1}}
+
 		restaurants := util.Aggregate(mongo.Pipeline{*search, limit})
 		util.Close()
 
@@ -272,22 +270,34 @@ func createSearchOptions(r *http.Request) *model.SearchOptions {
 
 func createSearchParams(v url.Values) *bson.D {
 	res := bson.D{}
+	var arr []bson.M
+	multi := len(v) > 0
+
 	for k, v := range v {
 		log.Printf("%s = %s\n", k, v[0])
 		if k == "id" {
-			res = append(res, bson.E{Key: "restaurantId", Value: v[0]})
+			createScanDocument(multi, "restaurantId", v[0], &res, &arr)
 		} else if k == "firstName" {
-			res = append(res, bson.E{Key: "owner.firstName", Value: v[0]})
+			createScanDocument(multi, "owner.firstName", v[0], &res, &arr)
 		} else if k == "lastName" {
-			res = append(res, bson.E{Key: "owner.lastName", Value: v[0]})
+			createScanDocument(multi, "owner.lastName", v[0], &res, &arr)
 		} else if k == "city" {
-			res = append(res, bson.E{Key: "address.city", Value: v[0]})
+			createScanDocument(multi, "address.city", v[0], &res, &arr)
 		} else if k == "state" {
-			res = append(res, bson.E{Key: "address.state", Value: v[0]})
+			createScanDocument(multi, "address.state", v[0], &res, &arr)
 		} else if k == "country" {
-			res = append(res, bson.E{Key: "address.country", Value: v[0]})
+			createScanDocument(multi, "address.country", v[0], &res, &arr)
 		}
 	}
+
+	if multi {
+		arr2 := bson.A{}
+		for _, a := range arr {
+			arr2 = append(arr2, a)
+		}
+		res = bson.D{{"$and", arr2}}
+	}
+	log.Println(res)
 	return &res
 }
 
@@ -321,6 +331,14 @@ func createAtlasSearchParams(v url.Values, o ...model.ParameterOptions) *bson.D 
 	addNestedDoc(&res, "$search", params)
 	log.Println(res)
 	return &res
+}
+
+func createScanDocument(b bool, k, v string, d *bson.D, m *[]bson.M) {
+	if b {
+		*m = append(*m, bson.M{k: bson.M{"$eq": v}})
+	} else {
+		*d = append(*d, bson.E{Key: k, Value: v})
+	}
 }
 
 func addNestedDoc(doc *bson.D, key string, nested bson.D) {
