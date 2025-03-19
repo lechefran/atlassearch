@@ -11,14 +11,11 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/writeconcern"
 	"log"
 	"math/rand"
+	"os"
 )
 
-const MongoConnString = ""
-const MongoDatabase = ""
-const MongoCollection = ""
-
 func PrepareCollection() {
-	util := util2.NewMongoDbUtil(MongoConnString).Database(MongoDatabase).Collection(MongoCollection)
+	util := util2.NewMongoDbUtil(os.Getenv("MONGO_DB_CONN_STRING")).Database(os.Getenv("MONGO_DB_DATABASE")).Collection(os.Getenv("MONGO_DB_COLLECTION"))
 
 	docCount := util.QueryMany(bson.D{})
 	if len(docCount) == 1000000 {
@@ -77,59 +74,8 @@ func PrepareCollection() {
 	util.Close()
 }
 
-func createDocuments() []model.Restaurant {
-	var docs []model.Restaurant
-	for i := 0; i < 1000000; i++ {
-		docs = append(docs, restaurantSkeleton())
-	}
-
-	// create 10k document batches with the same country
-	idx := 65
-	country := "COUNTRY " + string(byte(idx))
-	for i := 0; i < 1000000; i += 10000 {
-		for j := 0; j < 10000; j++ {
-			docs[i].Address.Country = country
-		}
-		idx++
-	}
-
-	// create 1k document batches with the same state
-	idx = 65
-	state := "STATE " + string(byte(idx))
-	for i := 0; i < 1000000; i += 1000 {
-		for j := 0; j < 1000; j++ {
-			docs[i].Address.State = state
-		}
-		idx++
-	}
-
-	// create 100 document batches with the same city
-	idx = 65
-	city := "CITY " + string(byte(idx))
-	for i := 0; i < 1000000; i += 100 {
-		for j := 0; j < 100; j++ {
-			docs[i].Address.City = city
-		}
-		idx++
-	}
-
-	// create 10 document batches with the same owner
-	for i := 0; i < 1000000; i += 10 {
-		owner := &model.Owner{
-			OwnerId:   uuid.NewString(),
-			FirstName: randString(16),
-			LastName:  randString(16),
-			Dob:       "00-00-0000",
-		}
-		for j := 0; j < 10; j++ {
-			docs[i].Owner = *owner
-		}
-	}
-	return docs
-}
-
-func DummyPreparation() { // dummy test function
-	util := util2.NewMongoDbUtil(MongoConnString).Database(MongoDatabase).Collection(MongoCollection)
+func PrepareDummyCollection() { // dummy test function
+	util := util2.NewMongoDbUtil(os.Getenv("MONGO_DB_CONN_STRING")).Database(os.Getenv("MONGO_DB_DATABASE")).Collection(os.Getenv("MONGO_DB_COLLECTION"))
 
 	docCount := util.QueryMany(bson.D{})
 	if len(docCount) == 10 {
@@ -220,6 +166,57 @@ func DummyPreparation() { // dummy test function
 		}
 	}
 	util.Close()
+}
+
+func createDocuments() []model.Restaurant {
+	var docs []model.Restaurant
+	for i := 0; i < 1000000; i++ {
+		docs = append(docs, restaurantSkeleton())
+	}
+
+	// create 10k document batches with the same country
+	idx := 65
+	country := "COUNTRY " + string(byte(idx))
+	for i := 0; i < 1000000; i += 10000 {
+		for j := 0; j < 10000; j++ {
+			docs[i].Address.Country = country
+		}
+		idx++
+	}
+
+	// create 1k document batches with the same state
+	idx = 65
+	state := "STATE " + string(byte(idx))
+	for i := 0; i < 1000000; i += 1000 {
+		for j := 0; j < 1000; j++ {
+			docs[i].Address.State = state
+		}
+		idx++
+	}
+
+	// create 100 document batches with the same city
+	idx = 65
+	city := "CITY " + string(byte(idx))
+	for i := 0; i < 1000000; i += 100 {
+		for j := 0; j < 100; j++ {
+			docs[i].Address.City = city
+		}
+		idx++
+	}
+
+	// create 10 document batches with the same owner
+	for i := 0; i < 1000000; i += 10 {
+		owner := &model.Owner{
+			OwnerId:   uuid.NewString(),
+			FirstName: randString(16),
+			LastName:  randString(16),
+			Dob:       "00-00-0000",
+		}
+		for j := 0; j < 10; j++ {
+			docs[i].Owner = *owner
+		}
+	}
+	return docs
 }
 
 func restaurantSkeleton() model.Restaurant {

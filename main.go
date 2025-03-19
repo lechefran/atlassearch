@@ -10,14 +10,15 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 )
 
-const MongoConnString = ""
-const MongoDatabase = ""
-const MongoCollection = ""
-
 func main() {
+	MongoConnString := os.Getenv("MONGO_DB_CONN_STRING")
+	MongoDatabase := os.Getenv("MONGO_DB_DATABASE")
+	MongoCollection := os.Getenv("MONGO_DB_COLLECTION")
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /ping", func(w http.ResponseWriter, r *http.Request) { // health check
 		w.Header().Set("Content-Type", "application/json")
@@ -42,7 +43,7 @@ func main() {
 				http.Error(w, "Installation parameter required: full or dummy", http.StatusBadRequest)
 			} else if req.Install == "dummy" {
 				log.Println("Starting dummy installation...")
-				load.DummyPreparation()
+				load.PrepareDummyCollection()
 			} else {
 				log.Println("Starting full installation...")
 				load.PrepareCollection()
