@@ -197,60 +197,81 @@ func main() {
 			return
 		}
 	})
-	//mux.HandleFunc("GET /atlas-search/get-restaurants", func(w http.ResponseWriter, r *http.Request) {
-	//	w.Header().Set("Content-Type", "application/json")
-	//	util := util2.NewMongoDbUtil(MongoConnString)
-	//	search := bson.D{{"$search", createSearchParams(r, model.ParameterOptions{
-	//		IsAtlasSearchQuery: true,
-	//	})}}
-	//	restaurants := util.Aggregate(mongo.Pipeline{search})
-	//	util.Close()
-	//
-	//	msg := ""
-	//	if len(restaurants) > 0 && len(restaurants[0]) > 0 {
-	//		msg = "Found a restaurant!"
-	//	} else {
-	//		msg = "No restaurant was found!"
-	//	}
-	//
-	//	res := model.RestaurantResponse{
-	//		Status: model.Status{
-	//			Code: http.StatusOK,
-	//			Msg:  msg,
-	//		},
-	//		Response: restaurants,
-	//	}
-	//	if err := json.NewEncoder(w).Encode(res); err != nil {
-	//		http.Error(w, err.Error(), http.StatusInternalServerError)
-	//		return
-	//	}
-	//})
-	//mux.HandleFunc("GET /atlas-search/get-all-restaurants", func(w http.ResponseWriter, r *http.Request) {
-	//	w.Header().Set("Content-Type", "application/json")
-	//	util := util2.NewMongoDbUtil(MongoConnString)
-	//	search := bson.D{{"$search", bson.D{}}}
-	//	restaurants := util.Aggregate(mongo.Pipeline{search})
-	//	util.Close()
-	//
-	//	msg := ""
-	//	if len(restaurants) > 0 && len(restaurants[0]) > 0 {
-	//		msg = "Found a restaurant!"
-	//	} else {
-	//		msg = "No restaurant was found!"
-	//	}
-	//
-	//	res := model.RestaurantResponse{
-	//		Status: model.Status{
-	//			Code: http.StatusOK,
-	//			Msg:  msg,
-	//		},
-	//		Response: restaurants,
-	//	}
-	//	if err := json.NewEncoder(w).Encode(res); err != nil {
-	//		http.Error(w, err.Error(), http.StatusInternalServerError)
-	//		return
-	//	}
-	//})
+	mux.HandleFunc("GET /atlas-search/get-restaurants", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		util := util2.NewMongoDbUtil(MongoConnString).Database(MongoDatabase).Collection(MongoCollection)
+		search := createAtlasSearchParams(r.URL.Query(), model.ParameterOptions{
+			SearchIndex: r.URL.Query().Get("searchIndex"),
+		})
+
+		restaurants := util.Aggregate(mongo.Pipeline{*search})
+		util.Close()
+
+		res := model.RestaurantResponse{
+			Status: model.Status{
+				Code: http.StatusOK,
+			},
+			Response: []model.Restaurant{},
+		}
+
+		for _, r := range restaurants {
+			var doc model.Restaurant
+			if err := bson.Unmarshal(r, &doc); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			} else {
+				if doc.RestaurantId == "" {
+					res.Status.Msg = "No restaurant was found!"
+				} else {
+					res.Status.Msg = "Found a restaurant!"
+					res.Response = append(res.Response, doc)
+				}
+			}
+		}
+		if err := json.NewEncoder(w).Encode(res); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	})
+	mux.HandleFunc("GET /atlas-search/get-all-restaurants", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		util := util2.NewMongoDbUtil(MongoConnString).Database(MongoDatabase).Collection(MongoCollection)
+		search := bson.D{}
+
+		params := bson.D{{"index", "dynamic-search"}}
+		must := bson.A{}
+		must = append(must, bson.D{{Key: "exists", Value: bson.D{{"path", "_id"}}}})
+		addNestedDoc(&params, "compound", bson.D{{"must", must}})
+		addNestedDoc(&search, "$search", params)
+		log.Println(params)
+
+		restaurants := util.Aggregate(mongo.Pipeline{search})
+		util.Close()
+
+		res := model.RestaurantResponse{
+			Status: model.Status{
+				Code: http.StatusOK,
+			},
+			Response: []model.Restaurant{},
+		}
+
+		for _, r := range restaurants {
+			var doc model.Restaurant
+			if err := bson.Unmarshal(r, &doc); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			} else {
+				if doc.RestaurantId == "" {
+					res.Status.Msg = "No restaurant was found!"
+				} else {
+					res.Status.Msg = "Found a restaurant!"
+					res.Response = append(res.Response, doc)
+				}
+			}
+		}
+		if err := json.NewEncoder(w).Encode(res); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	})
 
 	port := "8083"
 	log.Println("Listening on port :" + port)
@@ -276,17 +297,17 @@ func createSearchParams(v url.Values) *bson.D {
 	for k, v := range v {
 		log.Printf("%s = %s\n", k, v[0])
 		if k == "id" {
-			createScanDocument(multi, "restaurantId", v[0], &res, &arr)
+			createScanDoc(multi, "restaurantId", v[0], &res, &arr)
 		} else if k == "firstName" {
-			createScanDocument(multi, "owner.firstName", v[0], &res, &arr)
+			createScanDoc(multi, "owner.firstName", v[0], &res, &arr)
 		} else if k == "lastName" {
-			createScanDocument(multi, "owner.lastName", v[0], &res, &arr)
+			createScanDoc(multi, "owner.lastName", v[0], &res, &arr)
 		} else if k == "city" {
-			createScanDocument(multi, "address.city", v[0], &res, &arr)
+			createScanDoc(multi, "address.city", v[0], &res, &arr)
 		} else if k == "state" {
-			createScanDocument(multi, "address.state", v[0], &res, &arr)
+			createScanDoc(multi, "address.state", v[0], &res, &arr)
 		} else if k == "country" {
-			createScanDocument(multi, "address.country", v[0], &res, &arr)
+			createScanDoc(multi, "address.country", v[0], &res, &arr)
 		}
 	}
 
@@ -312,32 +333,45 @@ func createAtlasSearchParams(v url.Values, o ...model.ParameterOptions) *bson.D 
 	}
 
 	params := bson.D{{"index", idx}}
+	must := bson.A{}
+	multi := len(v) > 0
 	for k, v := range v {
 		log.Printf("%s = %s\n", k, v[0])
 		if k == "id" {
-			addNestedDoc(&params, "text", bson.D{{"path", "restaurantId"}, {"query", v[0]}})
+			createAtlasSearchDoc(multi, "restaurantId", v[0], &params, &must)
 		} else if k == "firstName" {
-			addNestedDoc(&params, "text", bson.D{{"path", "owner.firstName"}, {"query", v[0]}})
+			createAtlasSearchDoc(multi, "owner.firstName", v[0], &params, &must)
 		} else if k == "lastName" {
-			addNestedDoc(&params, "text", bson.D{{"path", "owner.lastName"}, {"query", v[0]}})
+			createAtlasSearchDoc(multi, "owner.lastName", v[0], &params, &must)
 		} else if k == "city" {
-			addNestedDoc(&params, "text", bson.D{{"path", "address.city"}, {"query", v[0]}})
+			createAtlasSearchDoc(multi, "address.city", v[0], &params, &must)
 		} else if k == "state" {
-			addNestedDoc(&params, "text", bson.D{{"path", "address.state"}, {"query", v[0]}})
+			createAtlasSearchDoc(multi, "address.state", v[0], &params, &must)
 		} else if k == "country" {
-			addNestedDoc(&params, "text", bson.D{{"path", "address.country"}, {"query", v[0]}})
+			createAtlasSearchDoc(multi, "address.country", v[0], &params, &must)
 		}
+	}
+	if multi {
+		addNestedDoc(&params, "compound", bson.D{{"must", must}})
 	}
 	addNestedDoc(&res, "$search", params)
 	log.Println(res)
 	return &res
 }
 
-func createScanDocument(b bool, k, v string, d *bson.D, m *[]bson.M) {
+func createScanDoc(b bool, k, v string, d *bson.D, m *[]bson.M) {
 	if b {
 		*m = append(*m, bson.M{k: bson.M{"$eq": v}})
 	} else {
 		*d = append(*d, bson.E{Key: k, Value: v})
+	}
+}
+
+func createAtlasSearchDoc(b bool, k, v string, d *bson.D, a *bson.A) {
+	if b {
+		*a = append(*a, bson.D{{Key: "text", Value: bson.D{{"path", k}, {"query", v}}}})
+	} else {
+		addNestedDoc(d, "text", bson.D{{"path", k}, {"query", v}})
 	}
 }
 
