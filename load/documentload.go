@@ -14,31 +14,38 @@ import (
 	"os"
 )
 
-func PrepareCollection() {
+func PrepareCollection(loadIndexes bool) {
 	util := util2.NewMongoDbUtil(os.Getenv("MONGO_DB_CONN_STRING")).Database(os.Getenv("MONGO_DB_DATABASE")).Collection(os.Getenv("MONGO_DB_COLLECTION"))
+	log.Println("Loading documents to collection...")
+	wc := writeconcern.Majority()
+	txnOpts := options.Transaction().SetWriteConcern(wc)
+	session, err := util.CreateSession()
+	if err != nil {
+		panic(err)
+	}
 
-	docCount := util.QueryMany(bson.D{})
-	if len(docCount) == 1000000 {
-		log.Println("Documents are already loaded in collection. Skipping document load step...")
-	} else {
-		log.Println("Loading documents to collection...")
-		util.Clear()
-		util.ClearIndices()
-		wc := writeconcern.Majority()
-		txnOpts := options.Transaction().SetWriteConcern(wc)
-		session, err := util.CreateSession()
-		if err != nil {
-			panic(err)
+	defer session.EndSession(context.Background())
+	res, err := session.WithTransaction(context.TODO(), func(ctx context.Context) (interface{}, error) {
+		var resInsert bool
+		if len(util.QueryMany(bson.D{})) == 1000000 {
+			log.Println("Documents are already loaded in collection. Skipping document load ...")
+			resInsert = true
+		} else {
+			log.Println("Starting document creation...")
+			util.Clear()
+			docs := createDocuments()
+
+			log.Println("Starting document insertion...")
+			resInsert = util.InsertMany(docs)
 		}
 
-		defer session.EndSession(context.Background())
-		res, err := session.WithTransaction(context.TODO(), func(ctx context.Context) (interface{}, error) {
-			log.Println("Starting document creation...")
-			docs := createDocuments()
-			log.Println("Starting document insertion...")
-			resInsert := util.InsertMany(docs)
-
+		var resIdx bool
+		if !loadIndexes {
+			log.Println("No indexes will be loaded. Skipping index load ...")
+			resIdx = true
+		} else {
 			log.Println("Starting index initialization...")
+			util.ClearIndices()
 			idIdx := mongo.IndexModel{ // restaurantId_1
 				Keys:    bson.D{{"restaurantId", 1}},
 				Options: options.Index().SetUnique(true),
@@ -58,39 +65,40 @@ func PrepareCollection() {
 			}
 
 			log.Println("Starting index creation...")
-			resIdx := util.CreateIndex(idIdx) &&
+			resIdx = util.CreateIndex(idIdx) &&
 				util.CreateIndex(ownerIdx) &&
 				util.CreateIndex(cityIdx) &&
 				util.CreateIndex(stateIdx) &&
 				util.CreateIndex(countryIdx)
-			return resInsert && resIdx, nil
-		}, txnOpts)
-		if res.(bool) {
-			log.Println("All preparation steps have been executed successfully")
-		} else {
-			log.Println("Something went wrong in the preparation steps")
 		}
+		return resInsert && resIdx, nil
+	}, txnOpts)
+	if res.(bool) {
+		log.Println("All preparation steps have been executed successfully")
+	} else {
+		log.Println("Something went wrong in the preparation steps")
 	}
 	util.Close()
 }
 
-func PrepareDummyCollection() { // dummy test function
+func PrepareDummyCollection(loadIndexes bool) { // dummy test function
 	util := util2.NewMongoDbUtil(os.Getenv("MONGO_DB_CONN_STRING")).Database(os.Getenv("MONGO_DB_DATABASE")).Collection(os.Getenv("MONGO_DB_COLLECTION"))
 
-	docCount := util.QueryMany(bson.D{})
-	if len(docCount) == 10 {
-		log.Println("Documents are already loaded in collection. Skipping document load step...")
-	} else {
-		log.Println("Loading documents to collection...")
-		wc := writeconcern.Majority()
-		txnOpts := options.Transaction().SetWriteConcern(wc)
-		session, err := util.CreateSession()
-		if err != nil {
-			panic(err)
-		}
+	log.Println("Loading documents to collection...")
+	wc := writeconcern.Majority()
+	txnOpts := options.Transaction().SetWriteConcern(wc)
+	session, err := util.CreateSession()
+	if err != nil {
+		panic(err)
+	}
 
-		defer session.EndSession(context.Background())
-		res, err := session.WithTransaction(context.TODO(), func(ctx context.Context) (interface{}, error) {
+	defer session.EndSession(context.Background())
+	res, err := session.WithTransaction(context.TODO(), func(ctx context.Context) (interface{}, error) {
+		var resInsert bool
+		if len(util.QueryMany(bson.D{})) == 10 {
+			log.Println("Documents are already loaded in collection. Skipping document load ...")
+			resInsert = true
+		} else {
 			log.Println("Starting document creation...")
 			var docs []model.Restaurant
 			country := randString(16)
@@ -130,9 +138,16 @@ func PrepareDummyCollection() { // dummy test function
 			}
 
 			log.Println("Starting document insertion...")
-			resInsert := util.InsertMany(docs)
+			resInsert = util.InsertMany(docs)
+		}
 
+		var resIdx bool
+		if !loadIndexes {
+			log.Println("No indexes will be loaded. Skipping index load ...")
+			resIdx = true
+		} else {
 			log.Println("Starting index initialization...")
+			util.ClearIndices()
 			idIdx := mongo.IndexModel{ // restaurantId_1
 				Keys:    bson.D{{"restaurantId", 1}},
 				Options: options.Index().SetUnique(true),
@@ -152,18 +167,18 @@ func PrepareDummyCollection() { // dummy test function
 			}
 
 			log.Println("Starting index creation...")
-			resIdx := util.CreateIndex(idIdx) &&
+			resIdx = util.CreateIndex(idIdx) &&
 				util.CreateIndex(ownerIdx) &&
 				util.CreateIndex(cityIdx) &&
 				util.CreateIndex(stateIdx) &&
 				util.CreateIndex(countryIdx)
-			return resInsert && resIdx, nil
-		}, txnOpts)
-		if res.(bool) {
-			log.Println("All preparation steps have been executed successfully")
-		} else {
-			log.Println("Something went wrong in the preparation steps")
 		}
+		return resInsert && resIdx, nil
+	}, txnOpts)
+	if res.(bool) {
+		log.Println("All preparation steps have been executed successfully")
+	} else {
+		log.Println("Something went wrong in the preparation steps")
 	}
 	util.Close()
 }

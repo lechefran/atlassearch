@@ -39,14 +39,19 @@ func main() {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		} else {
+			loadIndexes := false
+			s := r.URL.Query().Get("loadIndexes")
+			if s != "" {
+				loadIndexes, _ = strconv.ParseBool(s)
+			}
 			if req.Install == "" {
 				http.Error(w, "Installation parameter required: full or dummy", http.StatusBadRequest)
 			} else if req.Install == "dummy" {
 				log.Println("Starting dummy installation...")
-				load.PrepareDummyCollection()
+				load.PrepareDummyCollection(loadIndexes)
 			} else {
 				log.Println("Starting full installation...")
-				load.PrepareCollection()
+				load.PrepareCollection(loadIndexes)
 			}
 		}
 		res := model.StatusResponse{

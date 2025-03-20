@@ -10,5 +10,6 @@ type SearchRequest struct {
 }
 
 type InstallRequest struct {
-	Install string `json:"install"` // full or dummy
+	Install     string `json:"install"` // full or dummy
+	LoadIndexes bool   `json:"loadIndexes"`
 }
