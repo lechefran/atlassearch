@@ -274,7 +274,7 @@ func main() {
 		}
 	})
 
-	port := "8083"
+	port := os.Getenv("PORT")
 	log.Println("Listening on port :" + port)
 	err := http.ListenAndServe(":"+port, mux)
 	log.Fatal(err)
