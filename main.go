@@ -293,33 +293,30 @@ func createSearchOptions(r *http.Request) *model.SearchOptions {
 func createSearchParams(v url.Values) *bson.D {
 	res := bson.D{}
 	var arr []bson.M
-	multi := len(v) > 0
 
 	for k, v := range v {
 		log.Printf("%s = %s\n", k, v[0])
 		if k == "id" {
-			createScanDoc(multi, "restaurantId", v[0], &res, &arr)
+			arr = append(arr, bson.M{"restaurantId": bson.M{"$eq": v}})
 		} else if k == "firstName" {
-			createScanDoc(multi, "owner.firstName", v[0], &res, &arr)
+			arr = append(arr, bson.M{"owner.firstName": bson.M{"$eq": v}})
 		} else if k == "lastName" {
-			createScanDoc(multi, "owner.lastName", v[0], &res, &arr)
+			arr = append(arr, bson.M{"owner.lastName": bson.M{"$eq": v}})
 		} else if k == "city" {
-			createScanDoc(multi, "address.city", v[0], &res, &arr)
+			arr = append(arr, bson.M{"address.city": bson.M{"$eq": v}})
 		} else if k == "state" {
-			createScanDoc(multi, "address.state", v[0], &res, &arr)
+			arr = append(arr, bson.M{"address.state": bson.M{"$eq": v}})
 		} else if k == "country" {
-			createScanDoc(multi, "address.country", v[0], &res, &arr)
+			arr = append(arr, bson.M{"address.country": bson.M{"$eq": v}})
 		}
 	}
 
-	if multi {
-		arr2 := bson.A{}
-		for _, a := range arr {
-			arr2 = append(arr2, a)
-		}
-		res = bson.D{{"$and", arr2}}
+	arr2 := bson.A{}
+	for _, a := range arr {
+		arr2 = append(arr2, a)
 	}
-	log.Println(res)
+	res = bson.D{{"$and", arr2}}
+	log.Printf("Scan query: %s", res)
 	return &res
 }
 
@@ -335,45 +332,27 @@ func createAtlasSearchParams(v url.Values, o ...model.ParameterOptions) *bson.D 
 
 	params := bson.D{{"index", idx}}
 	must := bson.A{}
-	multi := len(v) > 0
 	for k, v := range v {
 		log.Printf("%s = %s\n", k, v[0])
 		if k == "id" {
-			createAtlasSearchDoc(multi, "restaurantId", v[0], &params, &must)
+			must = append(must, bson.D{{Key: "text", Value: bson.D{{"path", "restaurantId"}, {"query", v[0]}}}})
 		} else if k == "firstName" {
-			createAtlasSearchDoc(multi, "owner.firstName", v[0], &params, &must)
+			must = append(must, bson.D{{Key: "text", Value: bson.D{{"path", "owner.firstName"}, {"query", v[0]}}}})
 		} else if k == "lastName" {
-			createAtlasSearchDoc(multi, "owner.lastName", v[0], &params, &must)
+			must = append(must, bson.D{{Key: "text", Value: bson.D{{"path", "owner.lastName"}, {"query", v[0]}}}})
 		} else if k == "city" {
-			createAtlasSearchDoc(multi, "address.city", v[0], &params, &must)
+			must = append(must, bson.D{{Key: "text", Value: bson.D{{"path", "address.city"}, {"query", v[0]}}}})
 		} else if k == "state" {
-			createAtlasSearchDoc(multi, "address.state", v[0], &params, &must)
+			must = append(must, bson.D{{Key: "text", Value: bson.D{{"path", "address.state"}, {"query", v[0]}}}})
 		} else if k == "country" {
-			createAtlasSearchDoc(multi, "address.country", v[0], &params, &must)
+			must = append(must, bson.D{{Key: "text", Value: bson.D{{"path", "address.country"}, {"query", v[0]}}}})
 		}
 	}
-	if multi {
-		addNestedDoc(&params, "compound", bson.D{{"must", must}})
-	}
+
+	addNestedDoc(&params, "compound", bson.D{{"must", must}})
 	addNestedDoc(&res, "$search", params)
-	log.Println(res)
+	log.Printf("Atlas search query: %s", res)
 	return &res
-}
-
-func createScanDoc(b bool, k, v string, d *bson.D, m *[]bson.M) {
-	if b {
-		*m = append(*m, bson.M{k: bson.M{"$eq": v}})
-	} else {
-		*d = append(*d, bson.E{Key: k, Value: v})
-	}
-}
-
-func createAtlasSearchDoc(b bool, k, v string, d *bson.D, a *bson.A) {
-	if b {
-		*a = append(*a, bson.D{{Key: "text", Value: bson.D{{"path", k}, {"query", v}}}})
-	} else {
-		addNestedDoc(d, "text", bson.D{{"path", k}, {"query", v}})
-	}
 }
 
 func addNestedDoc(doc *bson.D, key string, nested bson.D) {
