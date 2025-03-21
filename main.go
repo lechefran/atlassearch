@@ -44,6 +44,15 @@ func main() {
 			if s != "" {
 				loadIndexes, _ = strconv.ParseBool(s)
 			}
+
+			docCount := req.DocumentCount
+			if docCount == 0 {
+				docCount = 1000000
+			} else if docCount%10000 != 0 {
+				http.Error(w, "Document count can only be in batches of 10000", http.StatusBadRequest)
+				return
+			}
+
 			if req.Install == "" {
 				http.Error(w, "Installation parameter required: full or dummy", http.StatusBadRequest)
 			} else if req.Install == "dummy" {
@@ -51,9 +60,10 @@ func main() {
 				load.PrepareDummyCollection(loadIndexes)
 			} else {
 				log.Println("Starting full installation...")
-				load.PrepareCollection(loadIndexes)
+				go load.PrepareCollection(loadIndexes, docCount) // goroutine
 			}
 		}
+
 		res := model.StatusResponse{
 			Code:  http.StatusAccepted,
 			Title: http.StatusText(http.StatusAccepted),
@@ -279,7 +289,7 @@ func main() {
 		}
 	})
 
-	port := os.Getenv("PORT")
+	port := "8084"
 	log.Println("Listening on port :" + port)
 	err := http.ListenAndServe(":"+port, mux)
 	log.Fatal(err)

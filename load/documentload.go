@@ -12,9 +12,10 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"time"
 )
 
-func PrepareCollection(loadIndexes bool) {
+func PrepareCollection(loadIndexes bool, docCount int64) {
 	util := util2.NewMongoDbUtil(os.Getenv("MONGO_DB_CONN_STRING")).Database(os.Getenv("MONGO_DB_DATABASE")).Collection(os.Getenv("MONGO_DB_COLLECTION"))
 	log.Println("Loading documents to collection...")
 	wc := writeconcern.Majority()
@@ -27,16 +28,21 @@ func PrepareCollection(loadIndexes bool) {
 	defer session.EndSession(context.Background())
 	res, err := session.WithTransaction(context.TODO(), func(ctx context.Context) (interface{}, error) {
 		var resInsert bool
-		if len(util.QueryMany(bson.D{})) == 1000000 {
-			log.Println("Documents are already loaded in collection. Skipping document load ...")
+		if len(util.QueryMany(bson.D{})) > 0 {
+			log.Println("Documents are present in collection. Skipping document load ...")
 			resInsert = true
 		} else {
-			log.Println("Starting document creation...")
+			log.Println("Starting document creation and insertion...")
 			util.Clear()
-			docs := createDocuments()
 
-			log.Println("Starting document insertion...")
-			resInsert = util.InsertMany(docs)
+			times := docCount / 10000
+			for range times {
+				go func() {
+					docs := createDocuments()
+					resInsert = util.InsertMany(docs)
+				}()
+				time.Sleep(time.Second * 3)
+			}
 		}
 
 		var resIdx bool
@@ -83,7 +89,6 @@ func PrepareCollection(loadIndexes bool) {
 
 func PrepareDummyCollection(loadIndexes bool) { // dummy test function
 	util := util2.NewMongoDbUtil(os.Getenv("MONGO_DB_CONN_STRING")).Database(os.Getenv("MONGO_DB_DATABASE")).Collection(os.Getenv("MONGO_DB_COLLECTION"))
-
 	log.Println("Loading documents to collection...")
 	wc := writeconcern.Majority()
 	txnOpts := options.Transaction().SetWriteConcern(wc)
@@ -95,51 +100,12 @@ func PrepareDummyCollection(loadIndexes bool) { // dummy test function
 	defer session.EndSession(context.Background())
 	res, err := session.WithTransaction(context.TODO(), func(ctx context.Context) (interface{}, error) {
 		var resInsert bool
-		if len(util.QueryMany(bson.D{})) == 10 {
-			log.Println("Documents are already loaded in collection. Skipping document load ...")
-			resInsert = true
-		} else {
-			log.Println("Starting document creation...")
-			var docs []model.Restaurant
-			country := randString(16)
-			for i := 0; i < 10; i++ {
-				doc := restaurantSkeleton()
-				doc.RestaurantName = randString(16)
-				doc.MetaData.Type = randString(8)
-				doc.MetaData.OperatingHours = []int{0, 24}
-				doc.MetaData.PhoneNumber = randString(10)
-				doc.MetaData.Email = randString(16)
-				doc.MetaData.IsActive = true
-				doc.Address.AddressId = uuid.NewString()
-				doc.Address.City = randString(16)
-				doc.Address.State = randString(16)
-				doc.Address.Zip = randString(5)
-				doc.Address.Country = country
-				doc.Owner.OwnerId = uuid.NewString()
-				doc.Owner.FirstName = randString(16)
-				doc.Owner.LastName = randString(16)
-				doc.Owner.Dob = randString(10)
-				doc.Chefs = append(doc.Chefs, model.Chef{
-					ChefId:     uuid.NewString(),
-					FirstName:  randString(16),
-					LastName:   randString(16),
-					Dob:        randString(10),
-					IsHeadChef: true,
-				})
-				doc.Menu = append(doc.Menu, model.MenuItem{
-					Type:     randString(8),
-					DishName: randString(16),
-					Price: model.Price{
-						Dollars: 0,
-						Cents:   0,
-					},
-				})
-				docs = append(docs, doc)
-			}
+		log.Println("Starting document creation...")
+		util.Clear()
+		docs := createDocuments()
 
-			log.Println("Starting document insertion...")
-			resInsert = util.InsertMany(docs)
-		}
+		log.Println("Starting document insertion...")
+		resInsert = util.InsertMany(docs)
 
 		var resIdx bool
 		if !loadIndexes {
@@ -183,44 +149,37 @@ func PrepareDummyCollection(loadIndexes bool) { // dummy test function
 	util.Close()
 }
 
+// create a batch of 10000 documents
 func createDocuments() []model.Restaurant {
 	var docs []model.Restaurant
-	for i := 0; i < 1000000; i++ {
+	for i := 0; i < 10000; i++ {
 		docs = append(docs, restaurantSkeleton())
 	}
 
 	// create 10k document batches with the same country
-	idx := 65
-	country := "COUNTRY " + string(byte(idx))
-	for i := 0; i < 1000000; i += 10000 {
-		for j := 0; j < 10000; j++ {
-			docs[i].Address.Country = country
-		}
-		idx++
+	country := randString(24)
+	for i := 0; i < 10000; i += 10000 {
+		docs[i].Address.Country = country
 	}
 
 	// create 1k document batches with the same state
-	idx = 65
-	state := "STATE " + string(byte(idx))
-	for i := 0; i < 1000000; i += 1000 {
+	for i := 0; i < 10000; i += 1000 {
+		state := randString(24)
 		for j := 0; j < 1000; j++ {
-			docs[i].Address.State = state
+			docs[j].Address.State = state
 		}
-		idx++
 	}
 
 	// create 100 document batches with the same city
-	idx = 65
-	city := "CITY " + string(byte(idx))
-	for i := 0; i < 1000000; i += 100 {
+	for i := 0; i < 10000; i += 100 {
+		city := randString(24)
 		for j := 0; j < 100; j++ {
-			docs[i].Address.City = city
+			docs[j].Address.City = city
 		}
-		idx++
 	}
 
 	// create 10 document batches with the same owner
-	for i := 0; i < 1000000; i += 10 {
+	for i := 0; i < 10000; i += 10 {
 		owner := &model.Owner{
 			OwnerId:   uuid.NewString(),
 			FirstName: randString(16),
@@ -236,7 +195,7 @@ func createDocuments() []model.Restaurant {
 
 func restaurantSkeleton() model.Restaurant {
 	r := model.Restaurant{
-		RestaurantName: "Restaurant " + randString(16),
+		RestaurantName: randString(16),
 		RestaurantId:   uuid.NewString(),
 		MetaData: model.Metadata{
 			Type: "restaurant",
@@ -247,27 +206,27 @@ func restaurantSkeleton() model.Restaurant {
 		Menu: []model.MenuItem{
 			{
 				Type:     "DISH",
-				DishName: "DISH NUMBER 1",
+				DishName: randString(30),
 				Price:    model.Price{Dollars: 1, Cents: 99},
 			},
 			{
 				Type:     "DISH",
-				DishName: "DISH NUMBER 2",
+				DishName: randString(30),
 				Price:    model.Price{Dollars: 1, Cents: 99},
 			},
 			{
 				Type:     "DISH",
-				DishName: "DISH NUMBER 3",
+				DishName: randString(30),
 				Price:    model.Price{Dollars: 1, Cents: 99},
 			},
 			{
 				Type:     "DISH",
-				DishName: "DISH NUMBER 4",
+				DishName: randString(30),
 				Price:    model.Price{Dollars: 1, Cents: 99},
 			},
 			{
 				Type:     "DISH",
-				DishName: "DISH NUMBER 5",
+				DishName: randString(30),
 				Price:    model.Price{Dollars: 1, Cents: 99},
 			},
 		},
