@@ -289,7 +289,7 @@ func main() {
 		}
 	})
 
-	port := "8084"
+	port := os.Getenv("PORT")
 	log.Println("Listening on port :" + port)
 	err := http.ListenAndServe(":"+port, mux)
 	log.Fatal(err)
