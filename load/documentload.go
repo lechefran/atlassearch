@@ -41,7 +41,7 @@ func PrepareCollection(loadIndexes bool, docCount int64) {
 					docs := createDocuments()
 					resInsert = util.InsertMany(docs)
 				}()
-				time.Sleep(time.Second * 3)
+				time.Sleep(time.Second)
 			}
 		}
 
@@ -180,14 +180,16 @@ func createDocuments() []model.Restaurant {
 
 	// create 10 document batches with the same owner
 	for i := 0; i < 10000; i += 10 {
-		owner := &model.Owner{
-			OwnerId:   uuid.NewString(),
-			FirstName: randString(16),
-			LastName:  randString(16),
-			Dob:       "00-00-0000",
-		}
+		id := uuid.NewString()
+		firstName := randString(16)
+		lastName := randString(16)
+		dob := "00-00-0000"
+
 		for j := 0; j < 10; j++ {
-			docs[i].Owner = *owner
+			docs[i].Owner.OwnerId = id
+			docs[i].Owner.FirstName = firstName
+			docs[i].Owner.LastName = lastName
+			docs[i].Owner.Dob = dob
 		}
 	}
 	return docs
@@ -202,7 +204,22 @@ func restaurantSkeleton() model.Restaurant {
 		},
 		Address: model.Address{},
 		Owner:   model.Owner{},
-		Chefs:   []model.Chef{},
+		Chefs: []model.Chef{
+			{
+				ChefId:     randString(16),
+				FirstName:  randString(16),
+				LastName:   randString(16),
+				Dob:        "00-00-0000",
+				IsHeadChef: true,
+			},
+			{
+				ChefId:     randString(16),
+				FirstName:  randString(16),
+				LastName:   randString(16),
+				Dob:        "00-00-0000",
+				IsHeadChef: false,
+			},
+		},
 		Menu: []model.MenuItem{
 			{
 				Type:     "DISH",
