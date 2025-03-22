@@ -188,10 +188,10 @@ func createDocuments() []model.Restaurant {
 		dob := "00-00-0000"
 
 		for j := 0; j < 10; j++ {
-			docs[i].Owner.OwnerId = id
-			docs[i].Owner.FirstName = firstName
-			docs[i].Owner.LastName = lastName
-			docs[i].Owner.Dob = dob
+			docs[j].Owner.OwnerId = id
+			docs[j].Owner.FirstName = firstName
+			docs[j].Owner.LastName = lastName
+			docs[j].Owner.Dob = dob
 		}
 	}
 	return docs
