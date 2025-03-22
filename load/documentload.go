@@ -158,7 +158,9 @@ func createDocuments() []model.Restaurant {
 
 	// create 10k document batches with the same country
 	country := randString(24)
-	for i := 0; i < 10000; i += 10000 {
+	for i := 0; i < 10000; i++ {
+		docs[i].Address.AddressId = randString(32)
+		docs[i].Address.Zip = randString(5)
 		docs[i].Address.Country = country
 	}
 
