@@ -34,7 +34,7 @@ func PrepareCollection(loadIndexes bool, docCount int64) {
 			log.Println("Starting document creation and insertion...")
 			util.Clear()
 
-			times := docCount / 10000
+			times := (docCount / 10000) + 1
 			for range times {
 				go func() {
 					docs := createDocuments()
