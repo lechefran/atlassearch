@@ -167,7 +167,7 @@ func createDocuments() []model.Restaurant {
 	// create 1k document batches with the same state
 	for i := 0; i < 10000; i += 1000 {
 		state := randString(24)
-		for j := 0; j < 1000; j++ {
+		for j := i; j < 1000; j++ {
 			docs[j].Address.State = state
 		}
 	}
@@ -175,7 +175,7 @@ func createDocuments() []model.Restaurant {
 	// create 100 document batches with the same city
 	for i := 0; i < 10000; i += 100 {
 		city := randString(24)
-		for j := 0; j < 100; j++ {
+		for j := i; j < 100; j++ {
 			docs[j].Address.City = city
 		}
 	}
@@ -187,7 +187,7 @@ func createDocuments() []model.Restaurant {
 		lastName := randString(16)
 		dob := "00-00-0000"
 
-		for j := 0; j < 10; j++ {
+		for j := i; j < 10; j++ {
 			docs[j].Owner.OwnerId = id
 			docs[j].Owner.FirstName = firstName
 			docs[j].Owner.LastName = lastName
