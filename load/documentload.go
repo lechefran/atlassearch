@@ -4,7 +4,6 @@ import (
 	"atlassearch/model"
 	util2 "atlassearch/util"
 	"context"
-	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -182,7 +181,7 @@ func createDocuments() []model.Restaurant {
 
 	// create 10 document batches with the same owner
 	for i := 0; i < 10000; i += 10 {
-		id := uuid.NewString()
+		id := randString(24)
 		firstName := randString(16)
 		lastName := randString(16)
 		dob := "00-00-0000"
@@ -200,7 +199,7 @@ func createDocuments() []model.Restaurant {
 func restaurantSkeleton() model.Restaurant {
 	r := model.Restaurant{
 		RestaurantName: randString(16),
-		RestaurantId:   uuid.NewString(),
+		RestaurantId:   randString(48),
 		MetaData: model.Metadata{
 			Type: "restaurant",
 		},
