@@ -312,17 +312,17 @@ func createSearchParams(v url.Values) *bson.D {
 	for k, v := range v {
 		log.Printf("%s = %s\n", k, v[0])
 		if k == "id" {
-			arr = append(arr, bson.M{"restaurantId": bson.M{"$eq": v}})
+			arr = append(arr, bson.M{"restaurantId": bson.M{"$eq": v[0]}})
 		} else if k == "firstName" {
-			arr = append(arr, bson.M{"owner.firstName": bson.M{"$eq": v}})
+			arr = append(arr, bson.M{"owner.firstName": bson.M{"$eq": v[0]}})
 		} else if k == "lastName" {
-			arr = append(arr, bson.M{"owner.lastName": bson.M{"$eq": v}})
+			arr = append(arr, bson.M{"owner.lastName": bson.M{"$eq": v[0]}})
 		} else if k == "city" {
-			arr = append(arr, bson.M{"address.city": bson.M{"$eq": v}})
+			arr = append(arr, bson.M{"address.city": bson.M{"$eq": v[0]}})
 		} else if k == "state" {
-			arr = append(arr, bson.M{"address.state": bson.M{"$eq": v}})
+			arr = append(arr, bson.M{"address.state": bson.M{"$eq": v[0]}})
 		} else if k == "country" {
-			arr = append(arr, bson.M{"address.country": bson.M{"$eq": v}})
+			arr = append(arr, bson.M{"address.country": bson.M{"$eq": v[0]}})
 		}
 	}
 
