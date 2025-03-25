@@ -40,7 +40,7 @@ func main() {
 			return
 		} else {
 			loadIndexes := false
-			s := r.URL.Query().Get("loadIndexes")
+			s := req.Install
 			if s != "" {
 				loadIndexes, _ = strconv.ParseBool(s)
 			}
