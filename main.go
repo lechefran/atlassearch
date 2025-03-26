@@ -39,12 +39,7 @@ func main() {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		} else {
-			loadIndexes := false
-			s := req.Install
-			if s != "" {
-				loadIndexes, _ = strconv.ParseBool(s)
-			}
-
+			loadIndexes := req.LoadIndexes
 			docCount := req.DocumentCount
 			if docCount == 0 {
 				docCount = 1000000
