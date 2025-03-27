@@ -23,6 +23,7 @@ func main() {
 	mux.HandleFunc("GET /ping", func(w http.ResponseWriter, r *http.Request) { // health check
 		w.Header().Set("Access-Control-Allow-Origin", "*") // Allows all origins
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		w.Header().Set("Content-Type", "application/json")
 		err := json.NewEncoder(w).Encode(model.StatusResponse{
 			Code:  http.StatusOK,
