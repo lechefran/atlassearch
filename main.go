@@ -23,7 +23,7 @@ func main() {
 	mux.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) { // health check
 		w.Header().Set("Access-Control-Allow-Origin", "*") // Allows all origins
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "accept, content-type, hx-request")
+		w.Header().Set("Access-Control-Allow-Headers", "accept, content-type, hx-request, hx-target")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		w.Header().Set("Allow", "GET, OPTIONS")
 		w.Header().Set("Content-Type", "application/json")
