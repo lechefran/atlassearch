@@ -20,7 +20,7 @@ func main() {
 	MongoCollection := os.Getenv("MONGO_DB_COLLECTION")
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /ping", func(w http.ResponseWriter, r *http.Request) { // health check
+	mux.HandleFunc("GET OPTIONS /ping", func(w http.ResponseWriter, r *http.Request) { // health check
 		w.Header().Set("Access-Control-Allow-Origin", "*") // Allows all origins
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "accept, content-type")
